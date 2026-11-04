@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordquiz</title>
+<style>
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+  }
+
+  body {
+    font-family: "Chalkboard SE", "Comic Sans MS", "Comic Neue", "Trebuchet MS", sans-serif;
+    color: #3b2a63;
+    background: linear-gradient(135deg, #ffd6e8, #c9e7ff, #d4ffd9, #fff3c4);
+    background-size: 400% 400%;
+    animation: bg 18s ease infinite;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  @keyframes bg {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Floating decorations */
+  .float {
+    position: fixed;
+    font-size: 3rem;
+    opacity: 0.55;
+    animation: bob 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .float:nth-child(1) { top: 8%;  left: 7%;  animation-delay: 0s; }
+  .float:nth-child(2) { top: 15%; right: 9%; animation-delay: 1.5s; }
+  .float:nth-child(3) { bottom: 12%; left: 10%; animation-delay: 3s; }
+  .float:nth-child(4) { bottom: 8%; right: 12%; animation-delay: 4.5s; }
+
+  @keyframes bob {
+    0%, 100% { transform: translateY(0) rotate(-8deg); }
+    50%      { transform: translateY(-18px) rotate(8deg); }
+  }
+
+  #confetti {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .score {
+    position: fixed;
+    top: 1rem;
+    right: 1.25rem;
+    background: #fff;
+    border-radius: 999px;
+    padding: 0.4rem 1.1rem;
+    font-size: 1.6rem;
+    font-weight: bold;
+    box-shadow: 0 6px 0 #e3d4ff;
+  }
+  .score.pop { animation: pop 0.5s ease; }
+
+  .reset {
+    position: fixed;
+    top: 1rem;
+    left: 1.25rem;
+    font: inherit;
+    font-size: 1rem;
+    color: #7b6aa8;
+    background: rgba(255, 255, 255, 0.7);
+    border: none;
+    border-radius: 999px;
+    padding: 0.45rem 1rem;
+    cursor: pointer;
+  }
+  .reset:hover { background: #fff; }
+
+  .card {
+    position: relative;
+    width: min(92vw, 820px);
+    min-height: 460px;
+    background: #fff;
+    border-radius: 36px;
+    padding: 2rem 2rem 2.25rem;
+    box-shadow: 0 14px 0 #e3d4ff, 0 24px 50px rgba(80, 40, 140, 0.18);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .turn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    padding: 0.45rem 1.3rem;
+    border-radius: 999px;
+    color: #fff;
+    transition: background 0.3s;
+  }
+  .turn.p1   { background: #ff7eb6; }
+  .turn.p2   { background: #5aa9ff; }
+  .turn.done { background: #3ccf7a; }
+
+  .stage {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+  }
+
+  .splash { animation: popIn 0.5s cubic-bezier(.2, 1.6, .4, 1); }
+  .splash-title {
+    font-size: clamp(3.5rem, 12vw, 7rem);
+    font-weight: bold;
+    color: #ff7eb6;
+    text-shadow: 0 6px 0 #ffd6e8;
+  }
+  .splash-emoji {
+    font-size: 2.5rem;
+    margin-top: 0.5rem;
+  }
+  .splash-info {
+    font-size: 1.3rem;
+    color: #7b6aa8;
+    margin: 1rem 0 0;
+  }
+
+  .word {
+    font-size: clamp(4rem, 15vw, 9rem);
+    font-weight: bold;
+    letter-spacing: 0.04em;
+    color: #7b4dff;
+    text-shadow: 0 6px 0 #e3d4ff;
+    animation: popIn 0.45s cubic-bezier(.2, 1.6, .4, 1);
+  }
+
+  .tiles {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+  }
+  .tiles.shake { animation: shake 0.45s; }
+  .tiles.win .tile { animation: jump 0.6s ease calc(var(--i) * 70ms); }
+
+  .tile {
+    width: clamp(3rem, 11vw, 5.2rem);
+    height: clamp(3.6rem, 13vw, 6.2rem);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(2.2rem, 8vw, 4rem);
+    font-weight: bold;
+    border: 4px dashed #cbbcf5;
+    background: #faf7ff;
+    color: #3b2a63;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .tile.right {
+    border: 4px solid #3ccf7a;
+    background: #e3fbec;
+    color: #1f8a4c;
+    animation: popIn 0.25s ease;
+  }
+  .tile.wrong {
+    border: 4px solid #ff4d6d;
+    background: #ffe3e8;
+    color: #e0153a;
+    animation: wobble 0.3s ease;
+  }
+  .tile.cursor {
+    border-style: solid;
+    border-color: #7b4dff;
+    animation: blink 1s steps(2, start) infinite;
+  }
+
+  /* Real input sits invisibly on top of the tiles so typing works everywhere */
+  #answer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    border: none;
+    font-size: 16px; /* prevents zoom on iOS */
+  }
+
+  .hint {
+    font-size: 1.4rem;
+    margin: 0;
+    min-height: 2em;
+  }
+
+  .btn {
+    font: inherit;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #fff;
+    background: #7b4dff;
+    border: none;
+    border-radius: 999px;
+    padding: 0.65rem 2.2rem;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #5530c9;
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  .btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #5530c9;
+  }
+  .btn kbd {
+    font: inherit;
+    font-size: 0.8em;
+    opacity: 0.75;
+    margin-left: 0.4rem;
+  }
+
+  .hidden { display: none !important; }
+
+  @keyframes popIn {
+    0%   { transform: scale(0.3); opacity: 0; }
+    100% { transform: scale(1);   opacity: 1; }
+  }
+  @keyframes pop {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.35); }
+  }
+  @keyframes jump {
+    0%, 100% { transform: translateY(0); }
+    40%      { transform: translateY(-28px) rotate(-6deg); }
+  }
+  @keyframes wobble {
+    0%, 100% { transform: rotate(0); }
+    25%      { transform: rotate(-8deg); }
+    75%      { transform: rotate(8deg); }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%      { transform: translateX(-14px); }
+    40%      { transform: translateX(14px); }
+    60%      { transform: translateX(-10px); }
+    80%      { transform: translateX(10px); }
+  }
+  @keyframes blink {
+    to { border-color: #e3d4ff; }
+  }
+</style>
+</head>
+<body>
+  <div class="float">⭐</div>
+  <div class="float">🌈</div>
+  <div class="float">🎈</div>
+  <div class="float">✏️</div>
+
+  <canvas id="confetti"></canvas>
+
+  <div class="score" id="score">⭐ 0</div>
+  <button class="reset" id="reset" type="button">↺ Start forfra</button>
+
+  <main class="card">
+    <div id="turn" class="turn"></div>
+
+    <div class="stage" id="stage">
+      <div id="splash" class="splash">
+        <div class="splash-title">Ordquiz</div>
+        <div class="splash-emoji">📚 ✏️ 🎉</div>
+        <p id="splash-info" class="splash-info"></p>
+      </div>
+      <div id="word" class="word hidden"></div>
+      <div id="tiles" class="tiles hidden"></div>
+      <input id="answer" class="hidden" type="text"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+
+    <p id="hint" class="hint"></p>
+    <button id="action" class="btn" type="button"></button>
+  </main>
+
+<script>
+  // ---------------------------------------------------------------
+  //  WORD LIST – add, remove or change words here.
+  // ---------------------------------------------------------------
+  const WORDS = [
+    // Group 1
+    "du", "de", "så", "er", "ud", "få", "at", "en", "da", "og", "må",
+    "et", "på", "se", "nu", "af", "os", "jo", "om", "vi", "op", "år",
+
+    // Group 2
+    "dog", "mig", "var", "vil", "tid", "har", "kan", "ned", "med", "kom",
+    "den", "der", "det", "end", "nej", "mod", "man", "dem", "dig", "alt",
+    "her", "min", "små", "for", "nok", "ved", "fin", "tog", "hen", "fri", "gad",
+    "sin", "dag", "sig", "ham", "men", "som", "hun", "mon", "jer", "til",
+    "kun", "fra", "far", "ind", "når", "fik", "jeg", "gik", "han", "løb",
+
+    // Group 3
+    "blev", "lidt", "selv", "lige", "bort", "hans", "sine", "hver",
+    "igen", "også", "være", "ikke", "stor", "alle", "godt", "over", "lang",
+    "have", "hvad", "hvor", "hjem", "skal", "hele", "mere", "hvis",
+
+    // Group 4
+    "kommer", "bliver", "sidste", "skulle", "ville", "store", "under",
+    "meget", "hende", "efter", "eller", "noget", "mange", "havde", "lille",
+    "været", "forbi", "deres", "fordi", "andre", "kunne", "sagde",
+  ];
+
+  const PRAISE = ["Super!", "Flot!", "Godt klaret!", "Fantastisk!", "Sejt!", "Wow!", "Perfekt!"];
+
+  // ---------------------------------------------------------------
+
+  const $ = (id) => document.getElementById(id);
+  const turnEl = $("turn"), wordEl = $("word"), tilesEl = $("tiles");
+  const answerEl = $("answer"), hintEl = $("hint"), actionEl = $("action");
+  const scoreEl = $("score"), resetEl = $("reset");
+  const splashEl = $("splash"), splashInfoEl = $("splash-info");
+
+  const norm = (s) => s.normalize("NFC").toLowerCase().replace(/\s/g, "");
+
+  const ALL_WORDS = [...new Set(WORDS.map(norm))];
+  const STORAGE_KEY = "wordquiz-completed";
+
+  let state = "splash"; // "splash" -> "show" -> "type" -> "done" -> "show" ...
+  let current = "";
+  let lastTyped = "";
+  let completed = loadCompleted();
+
+  // Completed words are saved in the browser (localStorage), so they are
+  // remembered even if the page is closed and opened again.
+  function loadCompleted() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      // Ignore words that have since been removed from the list.
+      return new Set(saved.filter((w) => ALL_WORDS.includes(w)));
+    } catch {
+      return new Set();
+    }
+  }
+
+  function saveCompleted() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...completed]));
+    } catch {
+      // Storage unavailable – progress is then only kept until the page closes.
+    }
+  }
+
+  function updateScore() {
+    scoreEl.textContent = "⭐ " + completed.size + " / " + ALL_WORDS.length;
+  }
+
+  // Random word that hasn't been completed yet. When every word is done,
+  // start a new round with the full list.
+  function pickWord() {
+    let left = ALL_WORDS.filter((w) => !completed.has(w));
+    if (left.length === 0) {
+      completed.clear();
+      saveCompleted();
+      updateScore();
+      left = ALL_WORDS.slice();
+    }
+    // Avoid the same word twice in a row (e.g. right after a new round starts).
+    if (left.length > 1) left = left.filter((w) => w !== current);
+    return left[Math.floor(Math.random() * left.length)];
+  }
+
+  function setTurn(cls, text) {
+    turnEl.className = "turn " + cls;
+    turnEl.textContent = text;
+  }
+
+  function setAction(label) {
+    actionEl.innerHTML = label + " <kbd>⏎</kbd>";
+  }
+
+  // Step 1: player 1 sees the word.
+  function showWord() {
+    state = "show";
+    current = pickWord();
+
+    splashEl.classList.add("hidden");
+    wordEl.textContent = current;
+    wordEl.classList.remove("hidden");
+    // Restart the pop-in animation.
+    wordEl.style.animation = "none";
+    void wordEl.offsetWidth;
+    wordEl.style.animation = "";
+
+    tilesEl.classList.add("hidden");
+    answerEl.classList.add("hidden");
+    answerEl.blur();
+
+    setTurn("p1", "👀 Spiller 1");
+    hintEl.textContent = "Læs ordet højt – tryk Enter, når du er klar";
+    setAction("Klar");
+  }
+
+  // Step 2: word is hidden, player 2 types it.
+  function startTyping() {
+    state = "type";
+    wordEl.classList.add("hidden");
+    tilesEl.classList.remove("hidden", "win", "shake");
+    answerEl.classList.remove("hidden");
+    answerEl.value = "";
+    lastTyped = "";
+    answerEl.maxLength = 20; // fixed, so the limit doesn't reveal the word length
+    renderTiles();
+    answerEl.focus();
+
+    setTurn("p2", "✏️ Spiller 2");
+    hintEl.textContent = "Skriv ordet";
+    setAction("Tjek");
+  }
+
+  function renderTiles() {
+    const typed = norm(answerEl.value);
+    // Only typed letters get a tile (plus one cursor tile while typing),
+    // so the number of tiles never reveals how long the word is.
+    const n = typed.length + (state === "type" ? 1 : 0);
+    tilesEl.innerHTML = "";
+    for (let i = 0; i < n; i++) {
+      const tile = document.createElement("span");
+      tile.className = "tile";
+      tile.style.setProperty("--i", i);
+      const ch = typed[i];
+      if (ch !== undefined) {
+        tile.textContent = ch;
+        tile.classList.add(ch === current[i] ? "right" : "wrong");
+      } else if (i === typed.length && state === "type") {
+        tile.classList.add("cursor");
+      }
+      tilesEl.append(tile);
+    }
+  }
+
+  // Step 3: check the answer.
+  function check() {
+    const typed = norm(answerEl.value);
+    if (typed === current) {
+      state = "done";
+      answerEl.blur();
+      answerEl.classList.add("hidden");
+      renderTiles();
+      tilesEl.classList.add("win");
+
+      completed.add(current);
+      saveCompleted();
+      updateScore();
+      scoreEl.classList.remove("pop");
+      void scoreEl.offsetWidth;
+      scoreEl.classList.add("pop");
+
+      if (completed.size === ALL_WORDS.length) {
+        setTurn("done", "🏆 Alle ord er klaret!");
+        hintEl.textContent = "Spiller 1: tryk Enter for at starte forfra";
+        setAction("Start forfra");
+        confetti();
+        setTimeout(confetti, 600);
+      } else {
+        const praise = PRAISE[Math.floor(Math.random() * PRAISE.length)];
+        setTurn("done", "🎉 " + praise);
+        hintEl.textContent = "Spiller 1: tryk Enter for næste ord";
+        setAction("Næste ord");
+        confetti();
+      }
+      playFanfare();
+    } else {
+      tilesEl.classList.remove("shake");
+      void tilesEl.offsetWidth;
+      tilesEl.classList.add("shake");
+      hintEl.textContent = typed.length
+        ? "Næsten! Ret de røde bogstaver 🙂"
+        : "Skriv ordet først ✏️";
+      answerEl.focus();
+    }
+  }
+
+  function advance() {
+    audio(); // unlock sound on the first key press / click
+    if (state === "splash") showWord();
+    else if (state === "show") startTyping();
+    else if (state === "type") check();
+    else if (state === "done") showWord();
+  }
+
+  answerEl.addEventListener("input", () => {
+    const cleaned = answerEl.value.replace(/\s/g, "");
+    if (cleaned !== answerEl.value) answerEl.value = cleaned;
+    hintEl.textContent = "Skriv ordet";
+    renderTiles();
+
+    // Beep if any newly added letter is wrong (not on backspace).
+    const typed = norm(answerEl.value);
+    for (let i = lastTyped.length; i < typed.length; i++) {
+      if (typed[i] !== current[i]) { playWrong(); break; }
+    }
+    lastTyped = typed;
+  });
+
+  // Keep the caret at the end so tiles always match what is typed.
+  answerEl.addEventListener("keydown", (e) => {
+    if (["ArrowLeft", "ArrowRight", "Home", "End", "ArrowUp", "ArrowDown"].includes(e.key)) {
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.repeat) return;
+    e.preventDefault();
+    advance();
+  });
+
+  actionEl.addEventListener("click", () => {
+    advance();
+    actionEl.blur();
+  });
+
+  resetEl.addEventListener("click", () => {
+    resetEl.blur();
+    if (!confirm("Vil du starte forfra? Alle klarede ord bliver glemt.")) return;
+    completed.clear();
+    saveCompleted();
+    updateScore();
+    showWord();
+  });
+
+  // Clicking anywhere while typing puts focus back in the (invisible) input.
+  document.addEventListener("click", (e) => {
+    if (state === "type" && e.target !== actionEl) answerEl.focus();
+  });
+
+  // ---------------------------------------------------------------
+  //  Sounds (generated with the Web Audio API – no sound files needed)
+  // ---------------------------------------------------------------
+  let audioCtx = null;
+
+  function audio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  function tone(freq, start, dur, type, vol) {
+    const ac = audio();
+    const t = ac.currentTime + start;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(ac.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
+  }
+
+  // Ta-da-da-DAAA: quick rising notes, then a held major chord.
+  function playFanfare() {
+    const G4 = 392, C5 = 523.25, E5 = 659.25, G5 = 783.99, C6 = 1046.5;
+    [G4, C5, E5].forEach((f, i) => {
+      tone(f, i * 0.11, 0.14, "triangle", 0.22);
+      tone(f, i * 0.11, 0.14, "square", 0.04);
+    });
+    [C5, E5, G5, C6].forEach((f) => {
+      tone(f, 0.36, 1.1, "triangle", 0.13);
+      tone(f, 0.36, 0.7, "square", 0.025);
+    });
+  }
+
+  // Short, low, slightly muffled "bwoop" for a wrong letter.
+  function playWrong() {
+    const ac = audio();
+    const t = ac.currentTime;
+    const osc = ac.createOscillator();
+    const filter = ac.createBiquadFilter();
+    const gain = ac.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(160, t);
+    osc.frequency.exponentialRampToValueAtTime(95, t + 0.2);
+    filter.type = "lowpass";
+    filter.frequency.value = 700;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.14, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    osc.connect(filter).connect(gain).connect(ac.destination);
+    osc.start(t);
+    osc.stop(t + 0.25);
+  }
+
+  // ---------------------------------------------------------------
+  //  Confetti
+  // ---------------------------------------------------------------
+  const canvas = $("confetti");
+  const ctx = canvas.getContext("2d");
+  const COLORS = ["#ff7eb6", "#5aa9ff", "#3ccf7a", "#ffd23f", "#7b4dff", "#ff8c42"];
+  let pieces = [];
+  let rafId = null;
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = innerWidth * dpr;
+    canvas.height = innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener("resize", resize);
+  resize();
+
+  function cannon(x, y, dir, count) {
+    for (let i = 0; i < count; i++) {
+      const angle = (-Math.PI / 2) + dir * (Math.random() * 0.7 + 0.1);
+      const speed = 12 + Math.random() * 12;
+      pieces.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 7 + Math.random() * 8,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.4,
+        round: Math.random() < 0.35,
+      });
+    }
+  }
+
+  function confetti() {
+    cannon(0, innerHeight, 1, 90);
+    cannon(innerWidth, innerHeight, -1, 90);
+    cannon(innerWidth / 2, innerHeight, (Math.random() < 0.5 ? -1 : 1) * 0.3, 40);
+    if (!rafId) rafId = requestAnimationFrame(tick);
+  }
+
+  function tick() {
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    for (const p of pieces) {
+      p.vy += 0.32;
+      p.vx *= 0.985;
+      p.vy *= 0.985;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      if (p.round) {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.66);
+      }
+      ctx.restore();
+    }
+    pieces = pieces.filter((p) => p.y < innerHeight + 50 || p.vy < 0);
+    rafId = pieces.length ? requestAnimationFrame(tick) : null;
+    if (!rafId) ctx.clearRect(0, 0, innerWidth, innerHeight);
+  }
+
+  // Splash page: nothing happens until Enter (or the button) is pressed.
+  function showSplash() {
+    state = "splash";
+    const done = completed.size, total = ALL_WORDS.length;
+    splashInfoEl.textContent = done > 0
+      ? "Du har klaret " + done + " af " + total + " ord"
+      : total + " ord er klar";
+    setTurn("p1", "👋 Velkommen");
+    hintEl.textContent = "Tryk Enter for at starte";
+    setAction("Start");
+  }
+
+  updateScore();
+  showSplash();
+</script>
+</body>
+</html>
