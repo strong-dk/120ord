@@ -143,6 +143,13 @@
     color: #7b6aa8;
     margin: 1rem 0 0;
   }
+  .splash-how {
+    font-size: 1.1rem;
+    line-height: 1.5;
+    color: #5a4a85;
+    max-width: 30rem;
+    margin: 1rem auto 0;
+  }
 
   .word {
     font-size: clamp(4rem, 15vw, 9rem);
@@ -285,6 +292,10 @@
         <div class="splash-title">Ordquiz</div>
         <div class="splash-emoji">📚 ✏️ 🎉</div>
         <p id="splash-info" class="splash-info"></p>
+        <p class="splash-how">
+          📣 <b>Oplæseren</b> ser ordet og læser det højt.<br>
+          ✏️ <b>Skriveren</b> skriver ordet uden at se det.
+        </p>
       </div>
       <div id="word" class="word hidden"></div>
       <div id="tiles" class="tiles hidden"></div>
@@ -391,7 +402,7 @@
     actionEl.innerHTML = label + " <kbd>⏎</kbd>";
   }
 
-  // Step 1: player 1 sees the word.
+  // Step 1: the reader sees the word and reads it aloud.
   function showWord() {
     state = "show";
     current = pickWord();
@@ -408,12 +419,12 @@
     answerEl.classList.add("hidden");
     answerEl.blur();
 
-    setTurn("p1", "👀 Spiller 1");
+    setTurn("p1", "📣 Oplæser");
     hintEl.textContent = "Læs ordet højt – tryk Enter, når du er klar";
     setAction("Klar");
   }
 
-  // Step 2: word is hidden, player 2 types it.
+  // Step 2: word is hidden, the writer types it.
   function startTyping() {
     state = "type";
     wordEl.classList.add("hidden");
@@ -425,7 +436,7 @@
     renderTiles();
     answerEl.focus();
 
-    setTurn("p2", "✏️ Spiller 2");
+    setTurn("p2", "✏️ Skriver");
     hintEl.textContent = "Skriv ordet";
     setAction("Tjek");
   }
@@ -470,14 +481,14 @@
 
       if (completed.size === ALL_WORDS.length) {
         setTurn("done", "🏆 Alle ord er klaret!");
-        hintEl.textContent = "Spiller 1: tryk Enter for at starte forfra";
+        hintEl.textContent = "Oplæser: tryk Enter for at starte forfra";
         setAction("Start forfra");
         confetti();
         setTimeout(confetti, 600);
       } else {
         const praise = PRAISE[Math.floor(Math.random() * PRAISE.length)];
         setTurn("done", "🎉 " + praise);
-        hintEl.textContent = "Spiller 1: tryk Enter for næste ord";
+        hintEl.textContent = "Oplæser: tryk Enter for næste ord";
         setAction("Næste ord");
         confetti();
       }
